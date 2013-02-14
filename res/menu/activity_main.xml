@@ -1,0 +1,7 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:icon="@drawable/pen" android:id="@+id/menu_pen" android:title="Pen"/>
+    <item android:icon="@drawable/eraser" android:id="@+id/menu_eraser" android:title="Erase"/>
+    <item android:icon="@drawable/preferences" android:id="@+id/menu_setting" android:title="Setting"/>
+    <item android:icon="@drawable/save" android:id="@+id/menu_save" android:title="Save"/>
+    <item android:icon="@drawable/clear" android:id="@+id/menu_clear" android:title="Clear"/> 
+</menu>
