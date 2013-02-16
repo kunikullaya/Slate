@@ -1,7 +1,9 @@
 package com.Vasily.Slate;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent; 
 import android.graphics.Bitmap; 
 import android.graphics.Canvas;
@@ -11,6 +13,8 @@ import android.graphics.Path;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment; 
+import android.os.Handler;
+import android.os.Message;
 import android.util.Log;
 import android.view.Menu; 
 import android.view.MenuItem;
@@ -25,6 +29,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
  
+ 
 public class SlateActivity extends Activity
 {
 	private static final int ACTIVITY_CREATE = 1;
@@ -32,29 +37,28 @@ public class SlateActivity extends Activity
 	public static final String Tag = "Slate";
 	public int pencilColor = 0;
 	public int pencilWidth = 0;
-	private static DrawPanel view;  
-	private CheckForFolder checkForFolder = new CheckForFolder();
-	private SaveBitmapThread saveBitmap = new SaveBitmapThread();
- 
+	private static DrawPanel view;    
+	private SaveBitmapThread saveBitmap; 
+	private static Handler handler;
+	
     protected void onActivityResult(int requestCode, int resultCode, Intent intent) {
 		if (resultCode == RESULT_OK && requestCode == ACTIVITY_CREATE) {
 			Bundle bundle = intent.getExtras();
 			bundle.getString("The_Width");
-			String width = null;
-			String color = null;
+			int width = 0;
+			int color = -1;
 			if (bundle != null)
 			{
-				width = bundle.getString("The_Width");
-				color = bundle.getString("The_Color");
+				width = Integer.valueOf(bundle.getString("The_Width")).intValue();
+				color = Integer.valueOf(bundle.getString("The_Color")).intValue(); 
 			}
-			if (Integer.valueOf(width).intValue() != 0)
-				this.pencilWidth = Integer.valueOf(width).intValue();
-			if (Integer.valueOf(color).intValue() >= 0)
-				this.pencilColor = whichColor(Integer.valueOf(color).intValue());
+			if (width != 0)
+				this.pencilWidth = width;
+			if (color > 0)
+				this.pencilColor = whichColor(color);
 		}
 	}
  
-
 	protected void onCreate(Bundle paramBundle)
 	{
 		super.onCreate(paramBundle);
@@ -63,11 +67,38 @@ public class SlateActivity extends Activity
 		view = new DrawPanel(this);
 		setContentView(view);
 		if (this.pencilColor == 0)
-		this.pencilColor = -1;
-		this.pencilWidth = 4;
-		checkForFolder.run();
+			this.pencilColor = Color.WHITE;
+		this.pencilWidth = 4; 
+		saveBitmap = new SaveBitmapThread();
+		handler = new Handler() {
+	            public void handleMessage(Message message) {
+	            	makeToast(message.what);
+	            }
+	     };
 	}
-
+	
+	private void makeToast(int what) {
+		String toastMessage;
+		switch (what) {
+		case 0: 
+			toastMessage = getString(R.string.Save_Successful) + APP_PATH_SD_CARD;
+		break;
+		case 1:
+			toastMessage = getString(R.string.Save_Failed_FileNotFoundException);
+		break;
+		case 2: 
+			toastMessage =  getString(R.string.Save_Failed_IOException);
+		break;
+		case 3:   
+			toastMessage = getString(R.string.SDCard_UnMounted);
+  	    break;
+		default:
+			 toastMessage = getString(R.string.generic_error);
+		break;
+	   }
+	  Toast.makeText(SlateActivity.this,toastMessage , Toast.LENGTH_SHORT).show();
+	}
+ 
 	public boolean onCreateOptionsMenu(Menu menu)
 	{
 		super.onCreateOptionsMenu(menu);
@@ -79,42 +110,25 @@ public class SlateActivity extends Activity
 	{
 		boolean bool = true;
 		switch (item.getItemId()) {
+
 		case R.id.menu_pen:
-			try
-			{
 				this.pencilColor = Color.WHITE;
 				this.pencilWidth = 4;
-			}
-			catch (Exception ex)
-			{
-				ex.printStackTrace();
-			}
 		return true;
+		
 		case R.id.menu_clear:
-			try
-			{
-				view.canvas.drawColor(Color.BLACK);
-				view.invalidate();
-			}
-			catch (Exception ex)
-			{
-				ex.printStackTrace();
-			}
-		return true;
+	                confirmActionDialog();
+	 	return true;
+	 	
 		case R.id.menu_eraser:
-		try
-		{
-			this.pencilColor = Color.BLACK;
-			this.pencilWidth = 15;
-		}
-		catch (Exception ex)
-		{
-			ex.printStackTrace();
-		}
+			this.pencilColor = Color.BLACK; 
+			this.pencilWidth = 10;
 		return true;
+		
 		case R.id.menu_save: 
-			 saveBitmap.run();
+			 saveBitmap.start(); 
 		return true;
+		
 		case R.id.menu_setting:
 		try
 		{
@@ -129,11 +143,33 @@ public class SlateActivity extends Activity
 			Log.v("Slate:", ex.toString());
 		}
 		return true;
+		
 	   }
 	return bool;	
-       }
+   }
     
-
+	 /**
+     * Displays a Confirmation Dialog before doing an action. 
+     */
+     private void confirmActionDialog(){
+        AlertDialog.Builder builder = new AlertDialog.Builder(SlateActivity.this);
+                 builder.setTitle("Confirm clear");
+                 builder.setPositiveButton(R.string.dialog_true, new DialogInterface.OnClickListener() {
+                 public void onClick(DialogInterface dialog, int id) {
+                	 view.canvas.drawColor(Color.BLACK);
+                 	 view.invalidate();
+                    }
+                });
+         builder.setNegativeButton(R.string.dialog_false, new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int id) {
+                      dialog.dismiss();
+                    }
+                });
+         AlertDialog dialog = builder.create();
+         dialog.show(); 
+    }
+	
+	 
 	public void onPause()
 	{
 	  super.onStop();
@@ -149,6 +185,10 @@ public class SlateActivity extends Activity
 		@Override
 		public void run() {
 		super.run();
+		File localFile = new File(APP_PATH_SD_CARD);
+		
+		if (!localFile.exists()) 
+			localFile.mkdirs();   
  		if( Environment.MEDIA_UNMOUNTED != Environment.getExternalStorageState()){
 			SimpleDateFormat localSimpleDateFormat = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss",Locale.US);
 			Date localDate = new Date();
@@ -161,28 +201,19 @@ public class SlateActivity extends Activity
 				localFileOutputStream.flush();
 				localFileOutputStream.close(); 
 	    		sendBroadcast(new Intent(Intent.ACTION_MEDIA_MOUNTED, Uri.parse("file://" + APP_PATH_SD_CARD)));
-	    		Toast.makeText(getApplicationContext(),R.string.Save_Successful + APP_PATH_SD_CARD, Toast.LENGTH_SHORT).show();
+	    		handler.sendEmptyMessage(0); 
 			}catch (FileNotFoundException e) {
-				Toast.makeText(getApplicationContext(),R.string.Save_Failed_FileNotFoundException, Toast.LENGTH_SHORT).show();
+				handler.sendEmptyMessage(1);
 			} catch (IOException e) {
-				Toast.makeText(getApplicationContext(),R.string.Save_Failed_IOException, Toast.LENGTH_SHORT).show();
+				handler.sendEmptyMessage(2);
 			}
 		}else{
-			Toast.makeText(getApplicationContext(), R.string.SDCard_UnMounted, Toast.LENGTH_SHORT).show();
+			handler.sendEmptyMessage(3);
 		}
 	  } 
     } 
-	
-	public class CheckForFolder extends Thread{
-		@Override
-		public void run() {
-		super.run();
-		File localFile = new File(APP_PATH_SD_CARD);
-		if (!localFile.exists()) 
-			localFile.mkdirs();  
-		} 
-	   } 
-	
+	 
+     
 	public int whichColor(int paramInt)
 	{
 	  int i;
@@ -196,23 +227,23 @@ public class SlateActivity extends Activity
 				break;
 			}
 			case 2:{
-				i = Color.rgb(185, 122, 87);
+				i = Color.rgb(184, 122, 88);
 				break;
 			}
 			case 3:{
-				i = Color.rgb(0, 162, 232);
+				i = Color.rgb(0, 161, 230);
 				break;
 			}
 			case 4:{
-				i = Color.rgb(195, 195, 195);
+				i = Color.rgb(125, 125, 125);
 				break;
 			}
 			case 5:{
-				i = Color.rgb(200, 191, 231);
+				i = Color.rgb(159, 72,161);
 				break;
 			}
 			case 6:{
-				i = Color.rgb(153, 217, 234);
+				i = Color.rgb(151, 214, 230);
 				break;
 			}
 			case 7:{
@@ -220,7 +251,7 @@ public class SlateActivity extends Activity
 				break;
 			}
 			case 8:{
-				i = Color.rgb(239, 228, 176);
+				i = Color.rgb(235, 223, 174);
 				break;
 			}
 			case 9:{
@@ -236,7 +267,7 @@ public class SlateActivity extends Activity
 				break;
 			}
 			case 12:{
-				i = Color.rgb(63, 72, 204);
+				i = Color.rgb(0,0,255);
 				break;
 			}
 			case 13:{
@@ -244,11 +275,11 @@ public class SlateActivity extends Activity
 				break;
 			}
 			case 14:{
-				i = Color.rgb(136, 0, 21);
+				i = Color.rgb(133, 0, 18);
 				break;
 			}
 			case 15:{
-				i = Color.rgb(112, 146, 190);
+				i = Color.rgb(111, 146, 189);
 				break;
 			}
 		}
@@ -257,58 +288,59 @@ public class SlateActivity extends Activity
 
 	public class DrawPanel extends View
 	{
-	public final Bitmap bitmap = Bitmap.createBitmap(getContext().getResources().getDisplayMetrics().widthPixels, getContext().getResources().getDisplayMetrics().heightPixels, Bitmap.Config.ARGB_8888);
-	private final Paint bitmappaint = new Paint(4);
-	private Canvas canvas = new Canvas(this.bitmap);
-	private float oldX;
-	private float oldY;
-	private final Paint paint = new Paint();
-	private final Path path = new Path();
+		public final Bitmap bitmap = Bitmap.createBitmap(getContext().getResources().getDisplayMetrics().widthPixels, getContext().getResources().getDisplayMetrics().heightPixels, Bitmap.Config.ARGB_8888);
+		private final Paint bitmappaint = new Paint(4);
+		private Canvas canvas = new Canvas(this.bitmap);
+		private float oldX;
+		private float oldY;
+		private final Paint paint = new Paint();
+		private final Path path = new Path();
 
-	public DrawPanel(Context c)
-	{
-		super(c);
-		this.paint.setStyle(Paint.Style.STROKE);
-		this.paint.setStrokeJoin(Paint.Join.ROUND);
-		this.paint.setStrokeCap(Paint.Cap.ROUND);
-		this.paint.setAntiAlias(true);
-	}
+		public DrawPanel(Context c)
+		{
+			super(c);
+			this.paint.setStyle(Paint.Style.STROKE);
+			this.paint.setStrokeJoin(Paint.Join.ROUND);
+			this.paint.setStrokeCap(Paint.Cap.ROUND);
+			this.paint.setAntiAlias(true);
+			
+		}
 
-	protected void onDraw(Canvas paramCanvas)
-	{
-		paramCanvas.drawColor(-16777216);
-		paramCanvas.drawBitmap(this.bitmap, 0.0F, 0.0F, this.bitmappaint);
-		paramCanvas.drawPath(this.path, this.paint);
-	}
+		protected void onDraw(Canvas paramCanvas)
+		{
+			paramCanvas.drawColor(-16777216);
+			paramCanvas.drawBitmap(this.bitmap, 0.0F, 0.0F, this.bitmappaint);
+			paramCanvas.drawPath(this.path, this.paint);
+		}
 
-	public boolean onTouchEvent(MotionEvent event)
-	{
-	float f1 = event.getX();
-	float f2 = event.getY();
-	this.paint.setColor(SlateActivity.this.pencilColor);
-	this.paint.setStrokeWidth(SlateActivity.this.pencilWidth);
-	switch (event.getAction())
-	{
-		case MotionEvent.ACTION_DOWN:
-			this.path.reset();
-			this.path.moveTo(f1, f2);
-			this.oldX = f1;
-			this.oldY = f2;
-			invalidate();
-		break;
-		case MotionEvent.ACTION_MOVE:
-			this.path.quadTo(this.oldX, this.oldY, (f1 + this.oldX) / 2.0F, (f2 + this.oldY) / 2.0F);
-			this.oldX = f1;
-			this.oldY = f2;
-			invalidate();
-		break; 
-		case MotionEvent.ACTION_UP: 
-			this.path.lineTo(this.oldX, this.oldY);
-			this.canvas.drawPath(this.path, this.paint);
-			this.path.reset();
-			invalidate();
-		break;
-	}
+		public boolean onTouchEvent(MotionEvent event)
+		{
+		float f1 = event.getX();
+		float f2 = event.getY();
+		this.paint.setColor(SlateActivity.this.pencilColor);
+		this.paint.setStrokeWidth(SlateActivity.this.pencilWidth);
+		switch (event.getAction())
+		{
+			case MotionEvent.ACTION_DOWN:
+				this.path.reset();
+				this.path.moveTo(f1, f2);
+				this.oldX = f1;
+				this.oldY = f2;
+				invalidate();
+			break;
+			case MotionEvent.ACTION_MOVE:
+				this.path.quadTo(this.oldX, this.oldY, (f1 + this.oldX) / 2.0F, (f2 + this.oldY) / 2.0F);
+				this.oldX = f1;
+				this.oldY = f2;
+				invalidate();
+			break; 
+			case MotionEvent.ACTION_UP: 
+				this.path.lineTo(this.oldX, this.oldY);
+				this.canvas.drawPath(this.path, this.paint);
+				this.path.reset();
+				invalidate();
+			break;
+		}
 	return true;
 	}
    }

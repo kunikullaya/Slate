@@ -1,13 +1,17 @@
 <resources>
-
     <string name="app_name">Slate</string> 
     <string name="menu_settings">Settings</string>
     <string name="title_activity_main">Slate</string>
-	<string name="message">Please select the width and the color &#8230;</string>
+	<string name="change_message">Please select the width and the color &#8230;</string>
 	<string name="width">Width:</string>
 	<string name="color">Color:</string>
-	<string name="SDCard_UnMounted">I was not able to detect any External storage options.</string>
+	<string name="SDCard_UnMounted">I was not able to detect any external storage options.</string>
 	<string name="Save_Failed_FileNotFoundException">Save failed(101)</string>
 	<string name="Save_Failed_IOException">Save failed(102)</string>
 	<string name="Save_Successful">Saved file under:</string>
+	<string name="ask_before">Confirmation dialog before clear</string>
+	<string name="dialog_true">Yes</string>
+    <string name="dialog_false">No</string>
+    <string name="generic_error">Something went wrong.</string>
+    <string name="ask_before_description">Shows a dialog before performing action</string>
 </resources>

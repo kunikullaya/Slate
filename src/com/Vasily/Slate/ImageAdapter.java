@@ -15,14 +15,14 @@ public class ImageAdapter extends BaseAdapter
   public ImageAdapter(Context paramContext)
   {
      Integer[] arrayOfInteger = {
-    		R.drawable.ffffff , R.drawable.b97a57,
-    		R.drawable.bl00a2e8 ,R.drawable.c3c3c3,
-    	     R.drawable.c8bfe7,R.drawable.c99d9ea,
-    	    R.drawable.ed1c24,R.drawable.efe4b0,
+    		R.drawable.ffffff , R.drawable.b87a58,
+    		R.drawable.b00a1e6 ,R.drawable.g7d7d7d,
+    	     R.drawable.a249a3,R.drawable.c99d8e8,
+    	    R.drawable.ed1c24,R.drawable.ede2af,
     	     R.drawable.ff7f27,R.drawable.ffaec9,
-    	     R.drawable.fff200,R.drawable.b3f48cc,
-    	     R.drawable.g22b14c,R.drawable.i880015,
-    	    R.drawable.lg7092be 
+    	     R.drawable.fff200,R.drawable.b0000ff,
+    	     R.drawable.g22b14c,R.drawable.i870014,
+    	    R.drawable.b6f92bd
     }; 
     this.colorPalette = arrayOfInteger;
     this.context = paramContext;
