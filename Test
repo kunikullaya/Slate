@@ -1,0 +1,27 @@
+//js code to inject headers i to webview
+
+import WebKit
+
+// Create WKWebViewConfiguration instance
+let webViewConfig = WKWebViewConfiguration()
+
+// JavaScript string
+let scriptString = """
+(function() {re
+    var originalOpen = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function(method, url, async, user, password) {
+        this.addEventListener('readystatechange', function() {
+            if(this.readyState === XMLHttpRequest.OPENED) {
+                this.setRequestHeader('Dummy-Test-Header', 'YourHeaderValue');
+            }
+        });
+        originalOpen.apply(this, arguments);
+    };
+})();
+"""
+
+// Create WKUserScript instance
+let userScript = WKUserScript(source: scriptString, injectionTime: .atDocumentStart, forMainFrameOnly: false)
+
+// Add the script to the webView's configuration
+webViewConfig.userContentController.addUserScript(
